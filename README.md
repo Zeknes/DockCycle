@@ -6,32 +6,33 @@ mac-click2circle
 
 运行环境
 - macOS 12.1+ (arm64)
-- Python 3.13
-- uv (依赖管理与运行)
 
-快速开始
-1. 安装依赖
-   - uv add pyobjc nuitka zstandard
-2. 启动脚本
-   - uv run python main.py
+Release 安装（推荐）
+1. 下载 Release 中的安装包
+2. 解压后进入目录
+3. 运行安装脚本
+   - chmod +x install.sh
+   - ./install.sh
+4. 授权辅助功能
+   - 系统设置 → 隐私与安全性 → 辅助功能
+   - 删除旧条目后，重新添加 ~/Applications/Click2Circle.app
 
 权限要求
 - 系统设置 → 隐私与安全性 → 辅助功能
 - 添加并勾选终端或应用本体 Click2Circle.app
 
-构建可执行应用
-1. 构建
+开发者构建
+1. 安装依赖
+   - uv add pyobjc nuitka zstandard
+2. 启动脚本
+   - uv run python main.py
+3. 构建可执行应用
    - uv run python build.py
-2. 产物
+4. 产物
    - Click2Circle.app
 
 安装开机自启（用户登录后）
-1. 安装
-   - chmod +x install.sh
-   - ./install.sh
-2. 授权
-   - 系统设置 → 隐私与安全性 → 辅助功能
-   - 删除旧条目后，重新添加 ~/Applications/Click2Circle.app
+- Release 安装已包含此步骤
 
 状态与日志
 - 标准输出: /tmp/click2circle.log
