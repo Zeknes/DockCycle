@@ -1,17 +1,8 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-
 # macOS
 .DS_Store
 *.app
 
-# Nuitka
-nuitka-crash-report.xml
+# Swift
+.build/
+*.app
+Package.resolved

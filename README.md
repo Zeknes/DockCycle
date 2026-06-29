@@ -1,51 +1,82 @@
-mac-click2circle
+# mac-dockcycle
 
-功能
-- 点击 Dock 当前前台 App 图标时，触发 Command + ~ 切换窗口
-- 仅在 Dock 图标与当前前台 App 匹配时生效
+点击 Dock 当前前台 App 图标时，在该应用的多个窗口之间循环切换。
 
-运行环境
-- macOS 12.1+ (arm64)
+**Swift 原生菜单栏应用** —— 用 Accessibility API 直接切换窗口，不依赖模拟系统快捷键。
 
-Release 安装（推荐）
-1. 下载 Release 中的安装包
-2. 解压后进入目录
-3. 运行安装脚本
-   - chmod +x install.sh
-   - ./install.sh
-4. 授权辅助功能
-   - 系统设置 → 隐私与安全性 → 辅助功能
-   - 删除旧条目后，重新添加 ~/Applications/Click2Circle.app
+## 功能
 
-权限要求
-- 系统设置 → 隐私与安全性 → 辅助功能
-- 添加并勾选终端或应用本体 Click2Circle.app
+- 点击 Dock 当前前台 App 图标 → 在该应用的多个窗口间循环切换
+- 菜单栏图标实时显示运行状态（● 绿色=启用，○ 灰色=暂停）
+- 菜单栏菜单：
+  - 启用 / 暂停
+  - 开机自启（一键开关，自动写入 LaunchAgent）
+  - 授权辅助功能（触发系统授权弹窗）
+  - 查看日志（打开 Console.app）
+  - 关于
+  - 退出（Cmd+Q）
 
-开发者构建
-1. 安装依赖
-   - uv add pyobjc nuitka zstandard
-2. 启动脚本
-   - uv run python main.py
-3. 构建可执行应用
-   - uv run python build.py
-4. 产物
-   - Click2Circle.app
+## 运行环境
 
-安装开机自启（用户登录后）
-- Release 安装已包含此步骤
+- macOS 12.0+ (arm64)
+- Xcode Command Line Tools（开发用，需 `swift build`）
 
-状态与日志
-- 标准输出: /tmp/click2circle.log
-- 错误输出: /tmp/click2circle.err
-- 状态检查: ./check_status.sh
+## 安装
 
-卸载
-1. 停止服务
-   - launchctl unload ~/Library/LaunchAgents/com.hewenpeng.click2circle.plist
-2. 删除文件
-   - rm -rf ~/Applications/Click2Circle.app
-   - rm -f ~/Library/LaunchAgents/com.hewenpeng.click2circle.plist
+```bash
+cd swift
+make install
+```
 
-发布说明
+安装到 `~/Applications/DockCycle.app` 并启动。
+
+## 授权辅助功能（首次必做）
+
+1. 双击 `~/Applications/DockCycle.app`，或 `make run`
+2. 系统设置 → 隐私与安全性 → 辅助功能
+3. 找到 **DockCycle**，打开开关
+4. 或点菜单栏 ● 图标 →「授权辅助功能…」
+
+> Swift 编译确定性：相同源码编译出的二进制 cdhash 一致，授权一次后只要不改源码重新编译，永久有效。
+
+## 开发者构建
+
+```bash
+cd swift
+make build    # 构建 DockCycle.app
+make run      # 构建并启动
+make install  # 构建并安装到 ~/Applications
+make clean    # 清理构建产物
+```
+
+源码在 `swift/Sources/DockCycle/`：
+- `main.swift` — 应用入口
+- `AppDelegate.swift` — 菜单栏 UI + Dock 点击判断
+- `EventTapMonitor.swift` — CGEventTap 事件监听
+- `ShortcutSimulator.swift` — Accessibility API 切换窗口
+
+## 原理
+
+点击 Dock 图标时，通过 CGEventTap 拦截鼠标事件，用 Accessibility API 判断点击的是否为当前前台应用的 Dock 图标。若是，则获取该应用的所有窗口，循环激活下一个窗口（不依赖模拟 Cmd+~，兼容任何系统快捷键设置）。
+
+## 日志
+
+日志通过 `NSLog` 写入 macOS 统一日志系统。查看方式：
+
+- 菜单栏 →「查看日志」（打开 Console.app，搜索 DockCycle）
+- 命令行：`log show --predicate 'processImagePath contains "DockCycle"' --last 1h`
+
+## 卸载
+
+1. 菜单栏点击 ● → 退出 DockCycle（Cmd+Q）
+2. 若开启过开机自启，先在菜单里取消勾选
+3. 删除文件：
+   ```bash
+   rm -rf ~/Applications/DockCycle.app
+   rm -f ~/Library/LaunchAgents/com.hewenpeng.dockcycle.plist
+   ```
+
+## 发布说明
+
 - 由于需全局事件监听，本项目不适合 Mac App Store 沙箱
 - 推荐独立分发并完成开发者公证
