@@ -21,9 +21,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.handleClick(at: location)
         }
 
-        if let err = eventTap.start() {
-            NSLog("[DockCycle] 事件监听启动失败: \(err)")
-            requestPermissions(for: err)
+        // 启动时同时检查两项权限，避免输入监听被藏在辅助功能之后而漏掉
+        requestMissingPermissions()
+        if !eventTap.start() {
+            NSLog("[DockCycle] 事件监听未启动：权限缺失")
+        }
+    }
+
+    /// 启动时检查所需权限，缺哪项就弹哪项的系统授权框（两项独立，互不遮挡）
+    private func requestMissingPermissions() {
+        if !AXIsProcessTrusted() {
+            let options: NSDictionary = [
+                kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+            ]
+            _ = AXIsProcessTrustedWithOptions(options)
+        }
+        // CGRequestListenEventAccess 会弹出系统原生「输入监听」授权框
+        if !CGPreflightListenEventAccess() {
+            CGRequestListenEventAccess()
         }
     }
 
@@ -53,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(autostartMenuItem)
 
         let authItem = NSMenuItem(
-            title: "授权辅助功能…", action: #selector(requestAccessibility), keyEquivalent: "")
+            title: "授权权限…", action: #selector(requestAccessibility), keyEquivalent: "")
         authItem.target = self
         menu.addItem(authItem)
 
@@ -134,9 +149,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isEnabled.toggle()
         enableMenuItem.title = isEnabled ? "✓ 已启用" : "  已禁用"
         if isEnabled {
-            if let err = eventTap.start() {
-                requestPermissions(for: err)
-            }
+            requestMissingPermissions()
+            _ = eventTap.start()
         } else {
             eventTap.stop()
         }
@@ -152,55 +166,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshAutostartState()
     }
 
-    /// 请求所需权限并引导用户到系统设置
-    private func requestPermissions(for error: EventTapMonitor.PermissionError) {
-        switch error {
-        case .accessibility:
-            // 触发辅助功能授权弹窗
-            let options: NSDictionary = [
-                kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
-            ]
-            _ = AXIsProcessTrustedWithOptions(options)
-            NSWorkspace.shared.open(
-                URL(
-                    string:
-                        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-                )!)
-
-        case .inputMonitoring:
-            // 输入监听权限无 API 可主动请求，只能引导用户手动开启
-            let alert = NSAlert()
-            alert.messageText = "需要「输入监听」权限"
-            alert.informativeText = """
-                DockCycle 需要「输入监听」权限才能监听 Dock 点击。
-
-                请前往：系统设置 → 隐私与安全性 → 输入监听
-                找到 DockCycle 并打开开关，然后重新启动 DockCycle。
-                """
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "打开系统设置")
-            alert.addButton(withTitle: "取消")
-            if alert.runModal() == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(
-                    URL(
-                        string:
-                            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
-                    )!)
-            }
-        }
-    }
-
+    /// 菜单「授权权限…」：同时检查两项权限并显示状态，缺哪项就引导哪项
     @objc private func requestAccessibility() {
-        // 菜单项手动触发：请求辅助功能权限
-        let options: NSDictionary = [
-            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
-        ]
-        _ = AXIsProcessTrustedWithOptions(options)
-        NSWorkspace.shared.open(
-            URL(
-                string:
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-        )
+        let axOK = AXIsProcessTrusted()
+        let listenOK = CGPreflightListenEventAccess()
+
+        if axOK && listenOK {
+            let alert = NSAlert()
+            alert.messageText = "权限已就绪"
+            alert.informativeText = "辅助功能、输入监听均已授权，DockCycle 可正常工作。"
+            alert.alertStyle = .informational
+            alert.runModal()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "需要两项权限"
+        alert.informativeText = """
+            DockCycle 需要以下两项权限才能监听 Dock 点击，缺一不可：
+
+            \(axOK ? "✅" : "❌") 辅助功能（Accessibility）
+            \(listenOK ? "✅" : "❌") 输入监听（Input Monitoring）
+
+            点「请求授权」会弹出系统授权框；若已勾选仍无效，
+            请在系统设置里手动打开开关，然后重新启动 DockCycle。
+            """
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "请求授权")
+        alert.addButton(withTitle: "打开系统设置")
+        alert.addButton(withTitle: "取消")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            requestMissingPermissions()
+        case .alertSecondButtonReturn:
+            // 优先打开还缺的那项设置页
+            let anchor =
+                !axOK ? "Privacy_Accessibility" : "Privacy_ListenEvent"
+            NSWorkspace.shared.open(
+                URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!)
+        default:
+            break
+        }
     }
 
     @objc private func showLog() {

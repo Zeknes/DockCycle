@@ -6,16 +6,11 @@ final class EventTapMonitor {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
-    /// 权限缺失类型
-    enum PermissionError {
-        case accessibility  // 辅助功能未授权
-        case inputMonitoring  // 输入监听未授权（CGEventTap 创建失败）
-    }
-
     /// 启动事件监听。
-    /// - Returns: nil 表示成功；否则返回缺失的权限类型。
-    func start() -> PermissionError? {
-        guard AXIsProcessTrusted() else { return .accessibility }
+    /// - Returns: true 表示成功；false 表示权限缺失（辅助功能或输入监听）导致未启动。
+    @discardableResult
+    func start() -> Bool {
+        guard AXIsProcessTrusted() else { return false }
         stop()
 
         let mask = CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
@@ -36,8 +31,8 @@ final class EventTapMonitor {
                 userInfo: refcon
             )
         else {
-            // tapCreate 返回 nil：macOS 12+ 需要单独的"输入监听"权限
-            return .inputMonitoring
+            // tapCreate 返回 nil：macOS 12+ 需要单独的「输入监听」权限
+            return false
         }
 
         eventTap = tap
@@ -46,7 +41,7 @@ final class EventTapMonitor {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         NSLog("[DockCycle] 事件监听已启动")
-        return nil
+        return true
     }
 
     func stop() {

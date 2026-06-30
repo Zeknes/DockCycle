@@ -34,7 +34,9 @@ clean:
 install: pre-install build
 	@echo "==> 安装到 $(INSTALL_DIR)/$(APP_BUNDLE)..."
 	-@rm -rf $(INSTALL_DIR)/$(APP_BUNDLE)
-	cp -r $(APP_BUNDLE) $(INSTALL_DIR)/
+	ditto $(APP_BUNDLE) $(INSTALL_DIR)/$(APP_BUNDLE)
+	@echo "==> 就地重新签名（cp/ditto 后须重签，否则 TCC 认不出身份，反复弹授权框）..."
+	codesign --force --deep --sign - $(INSTALL_DIR)/$(APP_BUNDLE)
 	@echo "==> 清理项目目录构建产物（避免启动台索引到两个 bundle）..."
 	-@rm -rf ./$(APP_BUNDLE)
 	@echo "✅ Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
