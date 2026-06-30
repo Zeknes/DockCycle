@@ -9,7 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var autostartMenuItem: NSMenuItem!
 
     private let plistLabel = "com.hewenpeng.dockcycle"
-    private let launchAgentPath = NSHomeDirectory() + "/Library/LaunchAgents/com.hewenpeng.dockcycle.plist"
+    private let launchAgentPath =
+        NSHomeDirectory() + "/Library/LaunchAgents/com.hewenpeng.dockcycle.plist"
 
     // MARK: - Lifecycle
 
@@ -38,18 +39,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
 
-        enableMenuItem = NSMenuItem(title: "✓ 已启用", action: #selector(toggleEnabled), keyEquivalent: "")
+        enableMenuItem = NSMenuItem(
+            title: "✓ 已启用", action: #selector(toggleEnabled), keyEquivalent: "")
         enableMenuItem.target = self
         menu.addItem(enableMenuItem)
 
         menu.addItem(.separator())
 
-        autostartMenuItem = NSMenuItem(title: "开机自启", action: #selector(toggleAutostart), keyEquivalent: "")
+        autostartMenuItem = NSMenuItem(
+            title: "开机自启", action: #selector(toggleAutostart), keyEquivalent: "")
         autostartMenuItem.target = self
         refreshAutostartState()
         menu.addItem(autostartMenuItem)
 
-        let authItem = NSMenuItem(title: "授权辅助功能…", action: #selector(requestAccessibility), keyEquivalent: "")
+        let authItem = NSMenuItem(
+            title: "授权辅助功能…", action: #selector(requestAccessibility), keyEquivalent: "")
         authItem.target = self
         menu.addItem(authItem)
 
@@ -59,11 +63,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let aboutItem = NSMenuItem(title: "关于 DockCycle", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(
+            title: "关于 DockCycle", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        let quitItem = NSMenuItem(title: "退出 DockCycle", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(
+            title: "退出 DockCycle", action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q")
         menu.addItem(quitItem)
 
         statusItem.menu = menu
@@ -88,7 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 获取鼠标下的 UI 元素
         let systemWide = AXUIElementCreateSystemWide()
         var element: AXUIElement?
-        let err = AXUIElementCopyElementAtPosition(systemWide, Float(location.x), Float(location.y), &element)
+        let err = AXUIElementCopyElementAtPosition(
+            systemWide, Float(location.x), Float(location.y), &element)
 
         guard err == .success, let element else { return }
 
@@ -114,7 +122,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 核心判断：点击的图标 == 当前前台 App（模糊匹配）
         if targetAppName == frontAppName
             || frontAppName.contains(targetAppName)
-            || targetAppName.contains(frontAppName) {
+            || targetAppName.contains(frontAppName)
+        {
             cycleWindows(of: targetAppName)
         }
     }
@@ -145,11 +154,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func requestAccessibility() {
         // 触发系统授权弹窗
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let options: NSDictionary = [
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+        ]
         _ = AXIsProcessTrustedWithOptions(options)
         // 打开系统设置
         NSWorkspace.shared.open(
-            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+            URL(
+                string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         )
     }
 
@@ -161,9 +174,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showAbout() {
+        let version =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? "1.0"
         let alert = NSAlert()
         alert.messageText = "DockCycle"
-        alert.informativeText = "点击 Dock 当前前台 App 图标时，触发 Command + ~ 切换窗口\n版本 3.0"
+        alert.informativeText =
+            "点击 Dock 当前前台 App 图标时，在该应用的多个窗口之间循环切换\n（Accessibility API 直接切换，不依赖模拟系统快捷键）\n版本 \(version)"
         alert.alertStyle = .informational
         alert.runModal()
     }
@@ -181,23 +198,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func enableAutostart() {
         let exe = appExecutablePath()
         let plist = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>\(plistLabel)</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(exe)</string>
-            </array>
-            <key>RunAtLoad</key>
-            <true/>
-            <key>KeepAlive</key>
-            <false/>
-        </dict>
-        </plist>
-        """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>Label</key>
+                <string>\(plistLabel)</string>
+                <key>ProgramArguments</key>
+                <array>
+                    <string>\(exe)</string>
+                </array>
+                <key>RunAtLoad</key>
+                <true/>
+                <key>KeepAlive</key>
+                <false/>
+            </dict>
+            </plist>
+            """
         let dir = (launchAgentPath as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? plist.write(toFile: launchAgentPath, atomically: true, encoding: .utf8)
