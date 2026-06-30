@@ -222,6 +222,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func disableAutostart() {
+        // 先从 launchd 注销，防止残留注册再次拉起进程
+        let task = Process()
+        task.launchPath = "/bin/launchctl"
+        task.arguments = ["bootout", "gui/\(getuid())/\(plistLabel)"]
+        try? task.run()
+        task.waitUntilExit()
+
         if FileManager.default.fileExists(atPath: launchAgentPath) {
             try? FileManager.default.removeItem(atPath: launchAgentPath)
         }
