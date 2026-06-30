@@ -21,9 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.handleClick(at: location)
         }
 
-        if !eventTap.start() {
-            NSLog("[DockCycle] 辅助功能权限未开启，事件监听未启动")
-            requestAccessibility()
+        if let err = eventTap.start() {
+            NSLog("[DockCycle] 事件监听启动失败: \(err)")
+            requestPermissions(for: err)
         }
     }
 
@@ -134,8 +134,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isEnabled.toggle()
         enableMenuItem.title = isEnabled ? "✓ 已启用" : "  已禁用"
         if isEnabled {
-            if !eventTap.start() {
-                requestAccessibility()
+            if let err = eventTap.start() {
+                requestPermissions(for: err)
             }
         } else {
             eventTap.stop()
@@ -152,13 +152,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshAutostartState()
     }
 
+    /// 请求所需权限并引导用户到系统设置
+    private func requestPermissions(for error: EventTapMonitor.PermissionError) {
+        switch error {
+        case .accessibility:
+            // 触发辅助功能授权弹窗
+            let options: NSDictionary = [
+                kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+            ]
+            _ = AXIsProcessTrustedWithOptions(options)
+            NSWorkspace.shared.open(
+                URL(
+                    string:
+                        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+                )!)
+
+        case .inputMonitoring:
+            // 输入监听权限无 API 可主动请求，只能引导用户手动开启
+            let alert = NSAlert()
+            alert.messageText = "需要「输入监听」权限"
+            alert.informativeText = """
+                DockCycle 需要「输入监听」权限才能监听 Dock 点击。
+
+                请前往：系统设置 → 隐私与安全性 → 输入监听
+                找到 DockCycle 并打开开关，然后重新启动 DockCycle。
+                """
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "打开系统设置")
+            alert.addButton(withTitle: "取消")
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(
+                    URL(
+                        string:
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+                    )!)
+            }
+        }
+    }
+
     @objc private func requestAccessibility() {
-        // 触发系统授权弹窗
+        // 菜单项手动触发：请求辅助功能权限
         let options: NSDictionary = [
             kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
         ]
         _ = AXIsProcessTrustedWithOptions(options)
-        // 打开系统设置
         NSWorkspace.shared.open(
             URL(
                 string:

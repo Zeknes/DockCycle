@@ -27,8 +27,12 @@ make install
 open ~/Applications/DockCycle.app
 ```
 
-> 首次启动需在 **系统设置 → 隐私与安全性 → 辅助功能** 中授权 DockCycle。
-> 菜单栏 ● 图标 →「授权辅助功能…」可直接跳转。
+> 首次启动需授权两道权限（缺一不可，否则点击 Dock 无反应）：
+> 1. **系统设置 → 隐私与安全性 → 辅助功能** → 开启 DockCycle
+> 2. **系统设置 → 隐私与安全性 → 输入监听** → 开启 DockCycle
+>
+> 菜单栏 ● 图标 →「授权辅助功能…」可跳转辅助功能页。
+> 若 EventTap 创建失败，app 会弹窗提示并引导到「输入监听」设置页。
 
 ## 验证安装成功
 
@@ -103,6 +107,21 @@ open ~/Applications/DockCycle.app
 **原因**：重新编译后二进制 cdhash 变化，需重新授权。
 
 **解决**：菜单栏 ● →「授权辅助功能…」，或系统设置里重新打开开关。
+
+### 点击 Dock 无反应（事件监听未启动）
+
+**原因**：macOS 12+ 的 `CGEventTap` 需要两道权限，缺一不可：
+1. **辅助功能**（Accessibility）— 用于 AXUIElement 查询
+2. **输入监听**（Input Monitoring）— 用于 CGEventTap 创建
+
+**诊断**：菜单栏 ● →「查看日志」，搜索"事件监听已启动"。若无此日志，说明 EventTap 创建失败。
+
+**解决**：
+1. 系统设置 → 隐私与安全性 → **辅助功能** → 开启 DockCycle
+2. 系统设置 → 隐私与安全性 → **输入监听** → 开启 DockCycle
+3. 重启 DockCycle：`pkill -x DockCycle && open ~/Applications/DockCycle.app`
+
+> 新版会在 EventTap 创建失败时弹出提示框，引导前往「输入监听」设置页。
 
 ## 开发命令
 
