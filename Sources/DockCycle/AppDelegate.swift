@@ -72,10 +72,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         authItem.target = self
         menu.addItem(authItem)
 
-        let logItem = NSMenuItem(title: "查看日志", action: #selector(showLog), keyEquivalent: "")
-        logItem.target = self
-        menu.addItem(logItem)
-
         menu.addItem(.separator())
 
         let aboutItem = NSMenuItem(
@@ -93,8 +89,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
-        // 启用: 实心圆点；禁用: 空心圆。模板模式，系统自动适配深色/浅色
-        let name = isEnabled ? "circle.fill" : "circle"
+        // 启用: 循环箭头；禁用: 禁止符号。模板模式，系统自动适配深色/浅色
+        let name = isEnabled ? "arrow.triangle.2.circlepath" : "circle.slash"
         let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "DockCycle")?
             .withSymbolConfiguration(cfg)
@@ -166,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshAutostartState()
     }
 
-    /// 菜单「授权权限…」：同时检查两项权限并显示状态，缺哪项就引导哪项
+    /// 菜单「授权权限…」：检查两项权限，缺哪项显示对应按钮
     @objc private func requestAccessibility() {
         let axOK = AXIsProcessTrusted()
         let listenOK = CGPreflightListenEventAccess()
@@ -181,40 +177,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let alert = NSAlert()
-        alert.messageText = "需要两项权限"
+        alert.messageText = "需要授权以下权限"
         alert.informativeText = """
-            DockCycle 需要以下两项权限才能监听 Dock 点击，缺一不可：
+            DockCycle 需要以下权限才能监听 Dock 点击：
 
             \(axOK ? "✅" : "❌") 辅助功能（Accessibility）
             \(listenOK ? "✅" : "❌") 输入监听（Input Monitoring）
 
-            点「请求授权」会弹出系统授权框；若已勾选仍无效，
-            请在系统设置里手动打开开关，然后重新启动 DockCycle。
+            ⚠️ 若设置里已勾选但仍无效：先关掉再重新打开对应开关，
+            或终端执行 make reset-tcc 后重启 app。
             """
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "请求授权")
-        alert.addButton(withTitle: "打开系统设置")
+
+        // 缺哪个权限就显示对应按钮，缺两个就两个都显示
+        if !axOK { alert.addButton(withTitle: "去授权辅助功能") }
+        if !listenOK { alert.addButton(withTitle: "去授权输入监听") }
         alert.addButton(withTitle: "取消")
+
+        let bothMissing = !axOK && !listenOK
 
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            requestMissingPermissions()
-        case .alertSecondButtonReturn:
-            // 优先打开还缺的那项设置页
-            let anchor =
-                !axOK ? "Privacy_Accessibility" : "Privacy_ListenEvent"
+            // 按钮0：缺辅助功能 → 辅助功能；否则 → 输入监听
+            let anchor = !axOK ? "Privacy_Accessibility" : "Privacy_ListenEvent"
             NSWorkspace.shared.open(
                 URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!)
+        case .alertSecondButtonReturn where bothMissing:
+            // 按钮1（仅两项都缺时才是「去授权输入监听」，否则是取消）
+            NSWorkspace.shared.open(
+                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
         default:
             break
         }
-    }
-
-    @objc private func showLog() {
-        NSWorkspace.shared.openApplication(
-            at: URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"),
-            configuration: NSWorkspace.OpenConfiguration()
-        )
     }
 
     @objc private func showAbout() {

@@ -66,3 +66,13 @@ uninstall:
 	@defaults write com.apple.dock ResetLaunchPad -bool true
 	@killall Dock 2>/dev/null || true
 	@echo "✅ Uninstalled"
+
+# 重置 TCC 权限记录（重编译后 cdhash 变化，旧权限记录失效）
+# macOS 按 bundle ID + cdhash 鉴权；源码改动、重新编译后 cdhash 变化，
+# 导致 System Settings 显示已授权但实际鉴权失败。运行此命令清除旧记录，
+# 然后重新启动 app 即可弹出授权框。
+reset-tcc:
+	@echo "==> 清除旧的 TCC 权限记录..."
+	-@tccutil reset Accessibility $(LAUNCH_AGENT_LABEL) 2>/dev/null || true
+	-@tccutil reset ListenEvent $(LAUNCH_AGENT_LABEL) 2>/dev/null || true
+	@echo "✅ 已清除。重新启动 DockCycle，系统会重新弹出授权框。"
