@@ -26,23 +26,12 @@ func cycleWindows(of appName: String) {
 
     NSLog("[DockCycle] \(appName) 有 \(windows.count) 个窗口")
 
-    // 找到当前焦点窗口
-    var focusedRef: CFTypeRef?
-    AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedRef)
-    let focusedWindow = focusedRef != nil ? (focusedRef as! AXUIElement) : nil
-
-    // 找到焦点窗口在列表中的位置，切换到下一个
-    var nextIndex = 0
-    if let focused = focusedWindow {
-        for (i, win) in windows.enumerated() {
-            if CFEqual(win, focused) {
-                nextIndex = (i + 1) % windows.count
-                break
-            }
-        }
-    }
-
-    let targetWindow = windows[nextIndex]
+    // AXWindows 按 z-order 排列（最前 → 最后），窗口被提升后会移到下标 0。
+    // 所以不能按「焦点窗口的下标 + 1」切换——那样下标 1 永远是上一个前台窗口，
+    // 3+ 个窗口时只会在最近两个之间来回弹。
+    // 正确做法：每次把最底层（列表末尾）的窗口提到最前，
+    // [A,B,C] → 提 C → [C,A,B] → 提 B → [B,C,A] → 提 A，天然遍历所有窗口。
+    let targetWindow = windows[windows.count - 1]
 
     // 提升目标窗口到前台
     app.activate(options: [.activateAllWindows])
@@ -50,5 +39,5 @@ func cycleWindows(of appName: String) {
     AXUIElementSetAttributeValue(targetWindow, "AXRaise" as CFString, kCFBooleanTrue)
     AXUIElementSetAttributeValue(targetWindow, kAXMainAttribute as CFString, kCFBooleanTrue)
 
-    NSLog("[DockCycle] 已切换到窗口 #\(nextIndex + 1)")
+    NSLog("[DockCycle] 已把最底层窗口提到最前")
 }
